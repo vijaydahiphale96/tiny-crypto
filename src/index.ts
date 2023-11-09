@@ -3,8 +3,48 @@ import fs from 'fs';
 const CIRCULAR_SHIFT = 7;
 const CHUNK_SIZE = 8; // 64 bits = 8 bytes
 
+const s: number[] = [14, 4, 11, 1, 7, 9, 12, 10, 13, 2, 0, 15, 8, 5, 3, 6];
+
 function circularShiftLeft(value: bigint, shift: number): bigint {
-  return ((value << BigInt(shift)) | (value >> BigInt(64 - shift))) & BigInt("0xFFFFFFFFFFFFFFFF");
+  const hexString: string = value.toString(16);
+  // const hexE = BigInt("0xE");
+  // console.log(hexE); // Output: 14n
+  const bigintNumber: bigint = BigInt("0x" + hexString);
+  // return ((bigintNumber << BigInt(shift)) | (bigintNumber >> BigInt(64 - shift))) & BigInt("0xFFFFFFFFFFFFFFFF");
+  return sBox(bigintNumber);
+}
+
+function sBox(b: bigint): bigint {
+  let y: bigint = BigInt(0);
+
+  for (let i = 0; i < 64; i += 4) {
+    const  abc = Number((b >> BigInt(i)) & BigInt("0xF"));
+    y |= (BigInt(s[abc]) << BigInt(i));
+  }
+
+  return y;
+}
+
+const s2: number[] = [10, 3, 9, 14, 1, 13, 15, 4, 12, 5, 7, 2, 6, 8, 0, 11];
+
+function circularShiftRight(value: bigint, shift: number): bigint {
+  const hexString: string = value.toString(16);
+  // const hexE = BigInt("0xE");
+  // console.log(hexE); // Output: 14n
+  const bigintNumber: bigint = BigInt("0x" + hexString);
+  // return ((bigintNumber << BigInt(shift)) | (bigintNumber >> BigInt(64 - shift))) & BigInt("0xFFFFFFFFFFFFFFFF");
+  return sBox2(bigintNumber);
+}
+
+function sBox2(b: bigint): bigint {
+  let y: bigint = BigInt(0);
+
+  for (let i = 0; i < 64; i += 4) {
+    const  abc = Number((b >> BigInt(i)) & BigInt("0xF"));
+    y |= (BigInt(s2[abc]) << BigInt(i));
+  }
+
+  return y;
 }
 
 function bigintToBuffer(value: bigint): Buffer {
@@ -43,7 +83,7 @@ function decryptBuffer(buffer: Buffer): Buffer {
       chunkBuffer.copy(decryptedBuffer, i);
     } else {
       const encryptedChunk = chunkBuffer.readBigUInt64LE(0);
-      const originalChunk = circularShiftLeft(encryptedChunk, 64 - CIRCULAR_SHIFT);
+      const originalChunk = circularShiftRight(encryptedChunk, 64 - CIRCULAR_SHIFT);
       bigintToBuffer(originalChunk).copy(decryptedBuffer, i);
     }
   }
