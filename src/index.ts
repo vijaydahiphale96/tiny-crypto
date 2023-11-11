@@ -9,12 +9,15 @@ function ANUEncrypt(value: bigint): bigint {
   let lower32Bits: bigint = value & BigInt("0xFFFFFFFF");
   let upper32Bits: bigint = (value >> BigInt(32)) & BigInt("0xFFFFFFFF");
 
-  // const hexString: string = value.toString(16);
-  // const hexE = BigInt("0xE");
-  // console.log(hexE); // Output: 14n
-  // const bigintNumber: bigint = BigInt("0x" + hexString);
-  // return ((bigintNumber << BigInt(shift)) | (bigintNumber >> BigInt(64 - shift))) & BigInt("0xFFFFFFFFFFFFFFFF");
-  return (sBox(upper32Bits) << BigInt(32)) | sBox(lower32Bits);
+  for(let round = 0; round < 25; round++) {
+    upper32Bits = sBox(upper32Bits);
+    upper32Bits = upper32Bits ^ (keysList[round][1] & BigInt("0xFFFFFFFF")) ^ rightCircularShift(lower32Bits, 3);
+    let temp = lower32Bits ^ ((keysList[round][1] >> BigInt(32)) & BigInt("0xFFFFFFFF")) ^ leftCircularShift(upper32Bits, 10);
+    lower32Bits = upper32Bits;
+    upper32Bits = temp;
+  }
+
+  return (upper32Bits << BigInt(32)) | lower32Bits;
 }
 
 function leftCircularShift(value: bigint, shift: number) {
@@ -39,14 +42,17 @@ function sBox(b: bigint): bigint {
 const s2: number[] = [10, 3, 9, 14, 1, 13, 15, 4, 12, 5, 7, 2, 6, 8, 0, 11];
 
 function ANUDecrypt(value: bigint): bigint {
-  const lower32Bits: bigint = value & BigInt("0xFFFFFFFF");
-  const upper32Bits: bigint = (value >> BigInt(32)) & BigInt("0xFFFFFFFF");
-  // const hexString: string = value.toString(16);
-  // const hexE = BigInt("0xE");
-  // console.log(hexE); // Output: 14n
-  // const bigintNumber: bigint = BigInt("0x" + hexString);
-  // return ((bigintNumber << BigInt(shift)) | (bigintNumber >> BigInt(64 - shift))) & BigInt("0xFFFFFFFFFFFFFFFF");
-  return (sBox2(upper32Bits) << BigInt(32)) | sBox2(lower32Bits);
+  let lower32Bits: bigint = value & BigInt("0xFFFFFFFF");
+  let upper32Bits: bigint = (value >> BigInt(32)) & BigInt("0xFFFFFFFF");
+
+  for(let round = 24; round >= 0; round--) {
+    let temp = lower32Bits;
+    lower32Bits = upper32Bits ^ ((keysList[round][1] >> BigInt(32)) & BigInt("0xFFFFFFFF")) ^ leftCircularShift(lower32Bits, 10);
+    upper32Bits = temp ^ (keysList[round][1] & BigInt("0xFFFFFFFF")) ^ rightCircularShift(lower32Bits, 3);
+    upper32Bits = sBox2(upper32Bits);
+  }
+
+  return (upper32Bits << BigInt(32)) | lower32Bits;
 }
 
 function sBox2(b: bigint): bigint {
@@ -115,15 +121,15 @@ const videoBuffer = fs.readFileSync(inputFile);
 
 // generate keys
 
-const keysList= [];
+const keysList: any= [];
 
 function generateKeys() {
   const initialKeys = [BigInt(0), BigInt(0)];
   for(let i = 0 ; i<25; i++) {
 
     keysList.push(initialKeys);
-    console.log("Round - ", i);
-    console.log("Start - ", initialKeys[0].toString(16), initialKeys[1].toString(16));
+    // console.log("Round - ", i);
+    // console.log("Start - ", initialKeys[0].toString(16), initialKeys[1].toString(16));
 
     const temp = initialKeys[1];
     initialKeys[1]= ((temp<<BigInt(13)) | (initialKeys[0]>>BigInt(64-13))) & BigInt("0xFFFFFFFFFFFFFFFF");
@@ -138,8 +144,8 @@ function generateKeys() {
     initialKeys[1] = (initialKeys[1] & BigInt("0xFFFFFFFFFFFFFF00") | y );
     const rc = ((initialKeys[1] >> BigInt(64-5)) & BigInt("0x1F")) ^ BigInt(i);
     initialKeys[1] = (initialKeys[1] & BigInt("0x07FFFFFFFFFFFFFF")) | (rc << BigInt(64-5));
-    console.log("encrypted - ", initialKeys[0].toString(16), initialKeys[1].toString(16));
-    console.log();
+    // console.log("encrypted - ", initialKeys[0].toString(16), initialKeys[1].toString(16));
+    // console.log();
 
   }
 }
